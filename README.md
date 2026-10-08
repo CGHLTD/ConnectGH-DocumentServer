@@ -74,9 +74,11 @@ To build a different ONLYOFFICE Docs release, pass its version, for example `mak
 
 ## Running Docker Image
 
+The Community edition is published on Docker Hub as [`connectgh/documentserver`](https://hub.docker.com/r/connectgh/documentserver) for amd64 and arm64, tagged `latest`, the ONLYOFFICE Docs version (e.g. `9.4.0`) and its major.minor (e.g. `9.4`).
+
     sudo docker run -i -t -d -p 80:80 connectgh/documentserver
 
-Use this command if you wish to run ConnectGH Document Server on its own.
+Use this command if you wish to run ConnectGH Document Server on its own. Enterprise and Developer edition images are not published; build them locally as described above.
 
 ## Configuring Docker Image
 
