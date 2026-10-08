@@ -51,6 +51,7 @@ cd tests && ./test.sh
 
 - Branding: image names, compose service/container names, labels and docs say ConnectGH. `COMPANY_NAME=onlyoffice`, in-container paths (`/var/www/onlyoffice`, `/etc/onlyoffice`), `ONLYOFFICE_*` env vars and the editor UI come from the upstream package — don't rename them
 - Upstream version: `PACKAGE_VERSION` in Dockerfile, `PRODUCT_VERSION` in Makefile, `PACKAGE_VERSION` in docker-bake.hcl — bump together
+- CI: `.github/workflows/build.yml` builds every edition on amd64 and arm64 for PRs and pushes to `develop`/`master`, checks the installed package matches `PACKAGE_VERSION`, and waits for `/healthcheck`. `trivy-ds.yml`/`zap-ds.yaml` are manual upstream scanners that target ONLYOFFICE's images
 - Single-container architecture: all services in one image via Supervisor
 - Three editions: Community, Enterprise (-ee), Developer (-de)
 - `run-document-server.sh` handles all configuration, DB init, service startup
