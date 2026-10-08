@@ -1,0 +1,115 @@
+### Publishes the Community image to Docker Hub when master changes.
+### Each architecture is built and health-checked on a native runner and
+### pushed as <version>-<arch>; a final job joins them into a multi-arch
+### <version>, <major.minor> and latest.
+###
+### Needs repo secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (a Docker Hub
+### access token with write access). The namespace defaults to "connectgh"
+### and can be overridden with the DOCKERHUB_NAMESPACE repo variable.
+name: Publish image
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  REPOSITORY: ${{ vars.DOCKERHUB_NAMESPACE || 'connectgh' }}/documentserver
+
+jobs:
+  build:
+    name: "Build and push (${{ matrix.arch }})"
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    env:
+      CONTAINER: connectgh-documentserver
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check Docker Hub credentials
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "::error::Set the DOCKERHUB_USERNAME and DOCKERHUB_TOKEN repository secrets"
+            exit 1
+          fi
+
+      - name: Read ONLYOFFICE Docs version
+        id: version
+        run: |
+          version=$(sed -n 's/^ARG PACKAGE_VERSION=//p' Dockerfile)
+          [ -n "$version" ] || { echo "::error::PACKAGE_VERSION is not pinned in Dockerfile"; exit 1; }
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "IMAGE=${REPOSITORY}:${version}-${{ matrix.arch }}" >> "$GITHUB_ENV"
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Build image
+        run: docker build --pull --target documentserver-community -t "$IMAGE" .
+
+      - name: Health check
+        run: |
+          docker run -d --name "$CONTAINER" -p 80:80 \
+            -e JWT_SECRET="ci-$(openssl rand -hex 16)" \
+            "$IMAGE"
+          for i in $(seq 1 60); do
+            if [ "$(curl -fs http://localhost/healthcheck)" = "true" ]; then
+              echo "Healthy after ~$((i * 10))s"
+              docker rm -f "$CONTAINER" >/dev/null
+              exit 0
+            fi
+            sleep 10
+          done
+          docker logs "$CONTAINER" 2>&1 | tail -n 200
+          echo "::error::Document Server did not become healthy within 10 minutes"
+          exit 1
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push image
+        run: docker push "$IMAGE"
+
+  manifest:
+    name: "Publish multi-arch tags"
+    runs-on: ubuntu-24.04
+    needs: build
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create and push manifest
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          docker buildx imagetools create \
+            -t "${REPOSITORY}:${VERSION}" \
+            -t "${REPOSITORY}:${VERSION%.*}" \
+            -t "${REPOSITORY}:latest" \
+            "${REPOSITORY}:${VERSION}-amd64" \
+            "${REPOSITORY}:${VERSION}-arm64"
+          docker buildx imagetools inspect "${REPOSITORY}:${VERSION}"
