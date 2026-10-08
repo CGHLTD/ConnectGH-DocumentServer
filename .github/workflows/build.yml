@@ -1,0 +1,88 @@
+### Builds the ConnectGH Document Server image for every edition and
+### architecture, then starts it and checks it serves documents.
+name: Build image
+
+on:
+  pull_request:
+    branches: [develop, master]
+  push:
+    branches: [develop, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: "${{ matrix.edition.name }} (${{ matrix.arch }})"
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+        edition:
+          - { name: Community, suffix: "", target: documentserver-community }
+          - { name: Enterprise, suffix: "-ee", target: documentserver-enterprise }
+          - { name: Developer, suffix: "-de", target: documentserver-enterprise }
+    env:
+      IMAGE: connectgh/documentserver${{ matrix.edition.suffix }}:ci
+      CONTAINER: connectgh-documentserver
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Build image
+        run: |
+          docker build \
+            --target ${{ matrix.edition.target }} \
+            --build-arg PRODUCT_EDITION=${{ matrix.edition.suffix }} \
+            -t "$IMAGE" .
+          docker image ls "$IMAGE"
+
+      - name: Check installed ONLYOFFICE Docs version
+        run: |
+          expected=$(sed -n 's/^ARG PACKAGE_VERSION=//p' Dockerfile)
+          installed=$(docker run --rm --entrypoint dpkg-query "$IMAGE" \
+            -W -f='${Version}' "onlyoffice-documentserver${{ matrix.edition.suffix }}")
+          echo "Expected ${expected}, installed ${installed}"
+          case "$installed" in
+            "$expected"-*) ;;
+            *) echo "::error::Installed version ${installed} does not match PACKAGE_VERSION ${expected}"; exit 1 ;;
+          esac
+
+      - name: Start container
+        run: |
+          docker run -d --name "$CONTAINER" -p 80:80 \
+            -e JWT_SECRET="ci-$(openssl rand -hex 16)" \
+            "$IMAGE"
+
+      - name: Wait for healthcheck
+        run: |
+          for i in $(seq 1 60); do
+            if [ "$(curl -fs http://localhost/healthcheck)" = "true" ]; then
+              echo "Healthy after ~$((i * 10))s"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::Document Server did not become healthy within 10 minutes"
+          exit 1
+
+      - name: Check editor API is served
+        run: curl -fsS -o /dev/null -w '%{http_code}\n' http://localhost/web-apps/apps/api/documents/api.js
+
+      - name: Container logs
+        if: always()
+        run: |
+          docker logs "$CONTAINER" 2>&1 | tail -n 200 || true
+          docker exec "$CONTAINER" sh -c 'tail -n 100 /var/log/onlyoffice/documentserver/*/out.log' 2>&1 || true

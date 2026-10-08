@@ -1,6 +1,6 @@
 ## Project Overview
 
-ONLYOFFICE Docker-DocumentServer — single-container Docker image for ONLYOFFICE Docs with all services (docservice, converter, nginx, PostgreSQL, Redis, RabbitMQ) managed by Supervisor.
+ConnectGH Document Server — fork of ONLYOFFICE Docker-DocumentServer. Single-container Docker image for ONLYOFFICE Docs (pinned to 9.4.0) with all services (docservice, converter, nginx, PostgreSQL, Redis, RabbitMQ) managed by Supervisor.
 
 ## Tech Stack
 
@@ -28,13 +28,14 @@ oracle/                 — Oracle SQLPlus wrapper
 
 ```bash
 # Build with Makefile
-make image PRODUCT_VERSION=9.2.0 BUILD_NUMBER=1
+make image                         # 9.4.0 by default
+make image PRODUCT_VERSION=9.4.1   # other upstream release
 
 # Build with Docker
-docker build -t onlyoffice/documentserver .
+docker build --target documentserver-community -t connectgh/documentserver .
 
 # Run
-docker run -i -t -d -p 80:80 onlyoffice/documentserver
+docker run -i -t -d -p 80:80 connectgh/documentserver
 
 # Docker Compose Community Edition
 docker-compose up -d
@@ -48,6 +49,9 @@ cd tests && ./test.sh
 
 ## Key Patterns
 
+- Branding: image names, compose service/container names, labels and docs say ConnectGH. `COMPANY_NAME=onlyoffice`, in-container paths (`/var/www/onlyoffice`, `/etc/onlyoffice`), `ONLYOFFICE_*` env vars and the editor UI come from the upstream package — don't rename them
+- Upstream version: `PACKAGE_VERSION` in Dockerfile, `PRODUCT_VERSION` in Makefile, `PACKAGE_VERSION` in docker-bake.hcl — bump together
+- CI: `.github/workflows/build.yml` builds every edition on amd64 and arm64 for PRs and pushes to `develop`/`master`, checks the installed package matches `PACKAGE_VERSION`, and waits for `/healthcheck`. `trivy-ds.yml`/`zap-ds.yaml` are manual upstream scanners that target ONLYOFFICE's images
 - Single-container architecture: all services in one image via Supervisor
 - Three editions: Community, Enterprise (-ee), Developer (-de)
 - `run-document-server.sh` handles all configuration, DB init, service startup

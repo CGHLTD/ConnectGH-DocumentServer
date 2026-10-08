@@ -31,7 +31,7 @@ variable "PRODUCT_NAME" {
 }
 
 variable "PACKAGE_VERSION" {
-    default = ""
+    default = "9.4.0"
 }
 
 variable "DOCKERFILE" {
