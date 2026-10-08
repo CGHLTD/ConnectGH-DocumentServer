@@ -1,55 +1,46 @@
+# ConnectGH Document Server
+
+ConnectGH Document Server is the online document editing service used by ConnectGH. It packages **ONLYOFFICE Docs 9.4.0** (Community, Enterprise or Developer edition) into a single Docker container with everything it needs: the document and conversion services, nginx, PostgreSQL, Redis and RabbitMQ, all managed by Supervisor.
+
 * [Overview](#overview)
 * [Functionality](#functionality)
 * [Recommended System Requirements](#recommended-system-requirements)
+* [Building the Image](#building-the-image)
 * [Running Docker Image](#running-docker-image)
 * [Configuring Docker Image](#configuring-docker-image)
     - [Storing Data](#storing-data)
-    - [Running ONLYOFFICE Document Server on Different Port](#running-onlyoffice-document-server-on-different-port)
-    - [Running ONLYOFFICE Document Server using HTTPS](#running-onlyoffice-document-server-using-https)
+    - [Running ConnectGH Document Server on Different Port](#running-connectgh-document-server-on-different-port)
+    - [Running ConnectGH Document Server using HTTPS](#running-connectgh-document-server-using-https)
         + [Using the automatically generated Let's Encrypt SSL Certificates](#using-the-automatically-generated-lets-encrypt-ssl-certificates)
         + [Generation of Self Signed Certificates](#generation-of-self-signed-certificates)
         + [Strengthening the Server Security](#strengthening-the-server-security)
         + [Installation of the SSL Certificates](#installation-of-the-ssl-certificates)
         + [Available Configuration Parameters](#available-configuration-parameters)
-* [Installing ONLYOFFICE Document Server using Docker Compose](#installing-onlyoffice-document-server-using-docker-compose)
-* [Installing ONLYOFFICE Document Server as a part of ONLYOFFICE Workspace](#installing-onlyoffice-document-server-as-a-part-of-onlyoffice-workspace)
-* [ONLYOFFICE Document Server ipv6 setup](#onlyoffice-document-server-ipv6-setup)
+* [Installing ConnectGH Document Server using Docker Compose](#installing-connectgh-document-server-using-docker-compose)
+* [ConnectGH Document Server ipv6 setup](#connectgh-document-server-ipv6-setup)
 * [Issues](#issues)
     - [Docker Issues](#docker-issues)
     - [Document Server usage Issues](#document-server-usage-issues)
 * [Project Information](#project-information)
-* [User Feedback and Support](#user-feedback-and-support)
 
 ## Overview
 
-ONLYOFFICE Docs (Document Server) is an open-source office suite that comprises all the tools you need to work with documents, spreadsheets, presentations, PDFs, and PDF forms. The suite supports office files of all popular formats (DOCX, ODT, XLSX, ODS, CSV, PPTX, ODP, etc.) and enables collaborative editing in real time.
+ConnectGH Document Server is built on [ONLYOFFICE Docs](https://github.com/ONLYOFFICE/DocumentServer), an open-source office suite for documents, spreadsheets, presentations, PDFs and PDF forms. It supports all popular office formats (DOCX, ODT, XLSX, ODS, CSV, PPTX, ODP, etc.) and enables collaborative editing in real time.
 
-Starting from version 6.0, Document Server is distributed as ONLYOFFICE Docs. It has [three editions](https://github.com/ONLYOFFICE/DocumentServer#onlyoffice-docs-editions). With this image, you will install the free Community version. 
-
-ONLYOFFICE Docs can be used as a part of [ONLYOFFICE DocSpace](https://www.onlyoffice.com/docspace.aspx) and ONLYOFFICE Workspace, or with [third-party sync&share solutions](https://www.onlyoffice.com/all-connectors.aspx) (e.g. Odoo, Moodle, Nextcloud, ownCloud, Seafile, etc.) to enable collaborative editing within their interface.
+This repository is a fork of [ONLYOFFICE/Docker-DocumentServer](https://github.com/ONLYOFFICE/Docker-DocumentServer). The image installs the official ONLYOFFICE Docs packages, so the editors themselves, and paths inside the container such as `/var/www/onlyoffice` and `/etc/onlyoffice`, are unchanged from upstream.
 
 ***Important*** Please update `docker-engine` to latest version (`20.10.21` as of writing this doc) before using it. We use `ubuntu:24.04` as base image and older versions of docker have compatibility problems with it
 
 ## Functionality ##
 
-Take advantage of the powerful editors included in ONLYOFFICE Docs:
-
-* [ONLYOFFICE Document Editor](https://www.onlyoffice.com/document-editor.aspx)
-* [ONLYOFFICE Spreadsheet Editor](https://www.onlyoffice.com/spreadsheet-editor.aspx)
-* [ONLYOFFICE Presentation Editor](https://www.onlyoffice.com/presentation-editor.aspx)
-* [ONLYOFFICE Form Creator](https://www.onlyoffice.com/form-creator.aspx)
-* [ONLYOFFICE PDF Editor](https://www.onlyoffice.com/pdf-editor.aspx)
-* [ONLYOFFICE Diagram Viewer](https://www.onlyoffice.com/diagram-viewer.aspx) 
-
-The editors empower you to create, edit, save, and export text docs, sheets, presentations, PDFs, create and fill out PDF forms, open diagrams, all while offering additional advanced features such as:
+The editors included in ONLYOFFICE Docs let you create, edit, save and export text documents, spreadsheets, presentations and PDFs, create and fill out PDF forms, and open diagrams, with features such as:
 
 * Collaborative editing (review & track changes, comments, chat)
-* [AI-powered assistants](https://www.onlyoffice.com/ai-assistants.aspx) 
-* Spell-checking 
+* AI-powered assistants
+* Spell-checking
 * Scalable UI options (including dark mode)
-* [Security tools & services](https://www.onlyoffice.com/security.aspx)
 
-ONLYOFFICE Docs offer support for plugins allowing you to add specific features to the editors that are not directly related to the OOXML format. For more details, see [our API](https://api.onlyoffice.com/docs/plugin-and-macros/get-started/overview/) or visit the [plugins repo](https://github.com/ONLYOFFICE/onlyoffice.github.io). Would like to explore the existing plugins? Open the [Marketplace](https://www.onlyoffice.com/app-directory).
+The editors support plugins. For details, see the [ONLYOFFICE plugin API](https://api.onlyoffice.com/docs/plugin-and-macros/get-started/overview/).
 
 ## Recommended System Requirements
 
@@ -60,18 +51,39 @@ ONLYOFFICE Docs offer support for plugins allowing you to add specific features 
 * **Distribution**: 64-bit Red Hat, CentOS or other compatible distribution with kernel version 3.8 or later, 64-bit Debian, Ubuntu or other compatible distribution with kernel version 3.8 or later
 * **Docker**: version 1.9.0 or later
 
+## Building the Image
+
+The image is built locally from this repository. By default it installs ONLYOFFICE Docs **9.4.0**.
+
+```bash
+# Community Edition -> connectgh/documentserver:9.4.0.0
+make image
+
+# Enterprise or Developer Edition -> connectgh/documentserver-ee / -de
+make image PRODUCT_EDITION=-ee
+make image PRODUCT_EDITION=-de
+```
+
+Or with Docker directly:
+
+```bash
+docker build --target documentserver-community -t connectgh/documentserver:9.4.0 .
+```
+
+To build a different ONLYOFFICE Docs release, pass its version, for example `make image PRODUCT_VERSION=9.4.1` or `docker build --build-arg PACKAGE_VERSION=9.4.1 ...`. Setting `PACKAGE_VERSION` to an empty value installs the latest upstream release.
+
 ## Running Docker Image
 
-    sudo docker run -i -t -d -p 80:80 onlyoffice/documentserver
+    sudo docker run -i -t -d -p 80:80 connectgh/documentserver
 
-Use this command if you wish to install ONLYOFFICE Document Server separately. To install ONLYOFFICE Document Server integrated with Community and Mail Servers, refer to the corresponding instructions below.
+Use this command if you wish to run ConnectGH Document Server on its own.
 
 ## Configuring Docker Image
 
 ### Storing Data
 
 All the data are stored in the specially-designated directories, **data volumes**, at the following location:
-* **/var/log/onlyoffice** for ONLYOFFICE Document Server logs
+* **/var/log/onlyoffice** for ConnectGH Document Server logs
 * **/var/www/onlyoffice/Data** for certificates
 * **/var/lib/onlyoffice** for file cache
 * **/var/lib/postgresql** for database
@@ -84,23 +96,23 @@ To get access to your data from outside the container, you need to mount the vol
 
 ```bash
     sudo docker run -i -t -d -p 80:80 \
-        -v /app/onlyoffice/DocumentServer/logs:/var/log/onlyoffice  \
-        -v /app/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data  \
-        -v /app/onlyoffice/DocumentServer/lib:/var/lib/onlyoffice \
-        onlyoffice/documentserver
+        -v /app/connectgh/DocumentServer/logs:/var/log/onlyoffice  \
+        -v /app/connectgh/DocumentServer/data:/var/www/onlyoffice/Data  \
+        -v /app/connectgh/DocumentServer/lib:/var/lib/onlyoffice \
+        connectgh/documentserver
 ```
 
 **Enterprise/Developer Edition** — PostgreSQL, RabbitMQ and Redis are bundled in the image:
 
 ```bash
     sudo docker run -i -t -d -p 80:80 \
-        -v /app/onlyoffice/DocumentServer/logs:/var/log/onlyoffice \
-        -v /app/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data \
-        -v /app/onlyoffice/DocumentServer/lib:/var/lib/onlyoffice \
-        -v /app/onlyoffice/DocumentServer/db:/var/lib/postgresql \
-        -v /app/onlyoffice/DocumentServer/rabbitmq:/var/lib/rabbitmq \
-        -v /app/onlyoffice/DocumentServer/redis:/var/lib/redis \
-        onlyoffice/documentserver-ee  # or onlyoffice/documentserver-de for Developer Edition
+        -v /app/connectgh/DocumentServer/logs:/var/log/onlyoffice \
+        -v /app/connectgh/DocumentServer/data:/var/www/onlyoffice/Data \
+        -v /app/connectgh/DocumentServer/lib:/var/lib/onlyoffice \
+        -v /app/connectgh/DocumentServer/db:/var/lib/postgresql \
+        -v /app/connectgh/DocumentServer/rabbitmq:/var/lib/rabbitmq \
+        -v /app/connectgh/DocumentServer/redis:/var/lib/redis \
+        connectgh/documentserver-ee  # or connectgh/documentserver-de for Developer Edition
 ```
 
 Normally, you do not need to store container data because the container's operation does not depend on its state. Saving data will be useful:
@@ -108,18 +120,18 @@ Normally, you do not need to store container data because the container's operat
 * To remove the limit on the size of the data inside the container
 * When using services launched outside the container such as PostgreSQL, Redis, RabbitMQ
 
-### Running ONLYOFFICE Document Server on Different Port
+### Running ConnectGH Document Server on Different Port
 
 To change the port, use the -p command. E.g.: to make your portal accessible via port 8080 execute the following command:
 
-    sudo docker run -i -t -d -p 8080:80 onlyoffice/documentserver
+    sudo docker run -i -t -d -p 8080:80 connectgh/documentserver
 
-### Running ONLYOFFICE Document Server using HTTPS
+### Running ConnectGH Document Server using HTTPS
 
         sudo docker run -i -t -d -p 443:443 \
-        -v /app/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data  onlyoffice/documentserver
+        -v /app/connectgh/DocumentServer/data:/var/www/onlyoffice/Data  connectgh/documentserver
 
-Access to the ONLYOFFICE application can be secured using SSL so as to prevent unauthorized access. While a CA certified SSL certificate allows for verification of trust via the CA, a self-signed certificate can also provide an equal level of trust verification as long as each client takes some additional steps to verify the identity of your website. Below the instructions on achieving this are provided.
+Access to ConnectGH Document Server can be secured using SSL so as to prevent unauthorized access. While a CA certified SSL certificate allows for verification of trust via the CA, a self-signed certificate can also provide an equal level of trust verification as long as each client takes some additional steps to verify the identity of your website. Below the instructions on achieving this are provided.
 
 To secure the application via SSL basically two things are needed:
 
@@ -128,15 +140,15 @@ To secure the application via SSL basically two things are needed:
 
 So you need to create and install the following files:
 
-        /app/onlyoffice/DocumentServer/data/certs/tls.key
-        /app/onlyoffice/DocumentServer/data/certs/tls.crt
+        /app/connectgh/DocumentServer/data/certs/tls.key
+        /app/connectgh/DocumentServer/data/certs/tls.crt
 
 When using CA certified certificates (e.g. [Let's Encrypt](https://letsencrypt.org)), these files are provided to you by the CA. If you are using self-signed certificates you need to generate these files [yourself](#generation-of-self-signed-certificates).
 
 #### Using the automatically generated Let's Encrypt SSL Certificates
 
         sudo docker run -i -t -d -p 80:80 -p 443:443 \
-        -e LETS_ENCRYPT_DOMAIN=your_domain -e LETS_ENCRYPT_MAIL=your_mail  onlyoffice/documentserver
+        -e LETS_ENCRYPT_DOMAIN=your_domain -e LETS_ENCRYPT_MAIL=your_mail  connectgh/documentserver
 
 If you want to get and extend Let's Encrypt SSL Certificates automatically just set LETS_ENCRYPT_DOMAIN and LETS_ENCRYPT_MAIL variables.
 
@@ -175,18 +187,18 @@ openssl dhparam -out dhparam.pem 2048
 
 #### Installation of the SSL Certificates
 
-Out of the four files generated above, you need to install the `tls.key`, `tls.crt` and `dhparam.pem` files at the ONLYOFFICE server. The CSR file is not needed, but do make sure you safely backup the file (in case you ever need it again).
+Out of the four files generated above, you need to install the `tls.key`, `tls.crt` and `dhparam.pem` files at the ConnectGH Document Server host. The CSR file is not needed, but do make sure you safely backup the file (in case you ever need it again).
 
-The default path that the ONLYOFFICE application is configured to look for the SSL certificates is at `/var/www/onlyoffice/Data/certs`, this can however be changed using the `SSL_KEY_PATH`, `SSL_CERTIFICATE_PATH` and `SSL_DHPARAM_PATH` configuration options.
+The default path that ConnectGH Document Server is configured to look for the SSL certificates is at `/var/www/onlyoffice/Data/certs`, this can however be changed using the `SSL_KEY_PATH`, `SSL_CERTIFICATE_PATH` and `SSL_DHPARAM_PATH` configuration options.
 
-The `/var/www/onlyoffice/Data/` path is the path of the data store, which means that you have to create a folder named certs inside `/app/onlyoffice/DocumentServer/data/` and copy the files into it and as a measure of security you will update the permission on the `tls.key` file to only be readable by the owner.
+The `/var/www/onlyoffice/Data/` path is the path of the data store, which means that you have to create a folder named certs inside `/app/connectgh/DocumentServer/data/` and copy the files into it and as a measure of security you will update the permission on the `tls.key` file to only be readable by the owner.
 
 ```bash
-mkdir -p /app/onlyoffice/DocumentServer/data/certs
-cp tls.key /app/onlyoffice/DocumentServer/data/certs/
-cp tls.crt /app/onlyoffice/DocumentServer/data/certs/
-cp dhparam.pem /app/onlyoffice/DocumentServer/data/certs/
-chmod 400 /app/onlyoffice/DocumentServer/data/certs/tls.key
+mkdir -p /app/connectgh/DocumentServer/data/certs
+cp tls.key /app/connectgh/DocumentServer/data/certs/
+cp tls.crt /app/connectgh/DocumentServer/data/certs/
+cp dhparam.pem /app/connectgh/DocumentServer/data/certs/
+chmod 400 /app/connectgh/DocumentServer/data/certs/tls.key
 ```
 
 You are now just one step away from having our application secured.
@@ -198,7 +210,7 @@ You are now just one step away from having our application secured.
 Below is the complete list of parameters that can be set using environment variables.
 
 - **ONLYOFFICE_HTTPS_HSTS_ENABLED**: Advanced configuration option for turning off the HSTS configuration. Applicable only when SSL is in use. Defaults to `true`.
-- **ONLYOFFICE_HTTPS_HSTS_MAXAGE**: Advanced configuration option for setting the HSTS max-age in the ONLYOFFICE nginx vHost configuration. Applicable only when SSL is in use. Defaults to `31536000`.
+- **ONLYOFFICE_HTTPS_HSTS_MAXAGE**: Advanced configuration option for setting the HSTS max-age in the nginx vHost configuration. Applicable only when SSL is in use. Defaults to `31536000`.
 - **SSL_CERTIFICATE_PATH**: The path to the SSL certificate to use. Defaults to `/var/www/onlyoffice/Data/certs/tls.crt`.
 - **SSL_KEY_PATH**: The path to the SSL certificate's private key. Defaults to `/var/www/onlyoffice/Data/certs/tls.key`.
 - **SSL_DHPARAM_PATH**: The path to the Diffie-Hellman parameter. Defaults to `/var/www/onlyoffice/Data/certs/dhparam.pem`.
@@ -208,10 +220,10 @@ Below is the complete list of parameters that can be set using environment varia
 - **NGINX_WORKER_CONNECTIONS**: Sets the maximum number of simultaneous connections that can be opened by a nginx worker process. Defaults to the soft limit from `ulimit -n`.
 - **NGINX_ACCESS_LOG**: Defines whether access logging is enabled. Defaults to `false`.
 - **SECURE_LINK_SECRET**: Defines secret for the nginx config directive [secure_link_md5](https://nginx.org/en/docs/http/ngx_http_secure_link_module.html#secure_link_md5). Defaults to `random string`.
-- **JWT_ENABLED**: Specifies the enabling the JSON Web Token validation by the ONLYOFFICE Document Server. Defaults to `true`.
-- **JWT_SECRET**: Defines the secret key to validate the JSON Web Token in the request to the ONLYOFFICE Document Server. Defaults to random value.
+- **JWT_ENABLED**: Specifies the enabling the JSON Web Token validation by the ConnectGH Document Server. Defaults to `true`.
+- **JWT_SECRET**: Defines the secret key to validate the JSON Web Token in the request to the ConnectGH Document Server. Defaults to random value.
 - **JWT_HEADER**: Defines the http header that will be used to send the JSON Web Token. Defaults to `Authorization`.
-- **JWT_IN_BODY**: Specifies the enabling the token validation in the request body to the ONLYOFFICE Document Server. Defaults to `false`.
+- **JWT_IN_BODY**: Specifies the enabling the token validation in the request body to the ConnectGH Document Server. Defaults to `false`.
 - **WOPI_ENABLED**: Specifies the enabling the wopi handlers. Defaults to `false`.
 - **ALLOW_META_IP_ADDRESS**: Defines if it is allowed to connect meta IP address or not. Defaults to `false`.
 - **ALLOW_PRIVATE_IP_ADDRESS**: Defines if it is allowed to connect private IP address or not. Defaults to `false`.
@@ -219,7 +231,7 @@ Below is the complete list of parameters that can be set using environment varia
 - **GENERATE_FONTS**: When 'true' regenerates fonts list and the fonts thumbnails etc. at each start. Defaults to `true`
 - **ADMINPANEL_ENABLED**: Enables admin panel service autostart. Defaults to `false`.
 - **EXAMPLE_ENABLED**: Enables example service autostart. Defaults to `false`.
-- **METRICS_ENABLED**: Specifies the enabling StatsD for ONLYOFFICE Document Server. Defaults to `false`.
+- **METRICS_ENABLED**: Specifies the enabling StatsD for ConnectGH Document Server. Defaults to `false`.
 - **METRICS_HOST**: Defines StatsD listening host. Defaults to `localhost`.
 - **METRICS_PORT**: Defines StatsD listening port. Defaults to `8125`.
 - **METRICS_PREFIX**: Defines StatsD metrics prefix for backend services. Defaults to `ds.`.
@@ -249,20 +261,20 @@ The following dependency parameters are supported only in Enterprise and Develop
 - **REDIS_SERVER_PASS**: The Redis server password. The password is not set by default.
 - **REDIS_SERVER_DB**: The Redis database index number to select. Defaults to `0`.
 
-## Installing ONLYOFFICE Document Server using Docker Compose
+## Installing ConnectGH Document Server using Docker Compose
 
-You can also install ONLYOFFICE Document Server using [docker-compose](https://docs.docker.com/compose/install "docker-compose"). 
+You can also install ConnectGH Document Server using [docker-compose](https://docs.docker.com/compose/install "docker-compose"). 
 
-First you need to clone this [GitHub repository](https://github.com/ONLYOFFICE/Docker-DocumentServer/):
+First you need to clone this [GitHub repository](https://github.com/CGHLTD/ConnectGH-DocumentServer):
 
 ```bash
-git clone https://github.com/ONLYOFFICE/Docker-DocumentServer
+git clone https://github.com/CGHLTD/ConnectGH-DocumentServer
 ```
 
 After that switch to the repository folder:
 
 ```bash
-cd Docker-DocumentServer
+cd ConnectGH-DocumentServer
 ```
 
 After that, assuming you have docker-compose installed, execute the following command:
@@ -285,120 +297,7 @@ docker compose -f docker-compose.enterprise.yml up -d
 docker compose -f docker-compose.developer.yml up -d
 ```
 
-## Installing ONLYOFFICE Document Server as a part of ONLYOFFICE Workspace
-
-ONLYOFFICE Document Server is a part of ONLYOFFICE Workspace that comprises also Community Server, Mail Server, and Control Panel. To install them, follow these easy steps:
-
-**STEP 1**: Create the `onlyoffice` network.
-
-```bash
-docker network create --driver bridge onlyoffice
-```
-Then launch containers on it using the 'docker run --net onlyoffice' option:
-
-**STEP 2**: Install MySQL.
-
-Install MySQL server. You can find MySQL installation instructions in the [official MySQL documentation](https://dev.mysql.com/doc/).
-
-**STEP 3**: Generate JWT Secret
-
-JWT secret defines the secret key to validate the JSON Web Token in the request to the **ONLYOFFICE Document Server**. You can specify it yourself or easily get it using the command:
-```
-JWT_SECRET=$(cat /dev/urandom | tr -dc A-Za-z0-9 | head -c 12);
-```
-
-**STEP 4**: Install ONLYOFFICE Document Server.
-
-```bash
-sudo docker run --net onlyoffice -i -t -d --restart=always --name onlyoffice-document-server \
- -e JWT_ENABLED=true \
- -e JWT_SECRET=${JWT_SECRET} \
- -e JWT_HEADER=AuthorizationJwt \
- -v /app/onlyoffice/DocumentServer/logs:/var/log/onlyoffice  \
- -v /app/onlyoffice/DocumentServer/data:/var/www/onlyoffice/Data  \
- -v /app/onlyoffice/DocumentServer/lib:/var/lib/onlyoffice \
- onlyoffice/documentserver
-```
-
-**STEP 5**: Install ONLYOFFICE Mail Server. 
-
-For the mail server correct work you need to specify its hostname 'yourdomain.com'.
-
-```bash
-sudo docker run --init --net onlyoffice --privileged -i -t -d --restart=always --name onlyoffice-mail-server -p 25:25 -p 143:143 -p 587:587 \
- -e MYSQL_SERVER=onlyoffice-mysql-server \
- -e MYSQL_SERVER_PORT=3306 \
- -e MYSQL_ROOT_USER=root \
- -e MYSQL_ROOT_PASSWD=my-secret-pw \
- -e MYSQL_SERVER_DB_NAME=onlyoffice_mailserver \
- -v /app/onlyoffice/MailServer/data:/var/vmail \
- -v /app/onlyoffice/MailServer/data/certs:/etc/pki/tls/mailserver \
- -v /app/onlyoffice/MailServer/logs:/var/log \
- -h yourdomain.com \
- onlyoffice/mailserver
-```
-
-The additional parameters for mail server are available [here](https://github.com/ONLYOFFICE/Docker-CommunityServer/blob/master/docker-compose.workspace_enterprise.yml#L87).
-
-To learn more, refer to the [ONLYOFFICE Mail Server documentation](https://github.com/ONLYOFFICE/Docker-MailServer "ONLYOFFICE Mail Server documentation").
-
-**STEP 6**: Install ONLYOFFICE Community Server
-
-```bash
-sudo docker run --net onlyoffice -i -t -d --privileged --restart=always --name onlyoffice-community-server -p 80:80 -p 443:443 -p 5222:5222 --cgroupns=host \
- -e MYSQL_SERVER_ROOT_PASSWORD=my-secret-pw \
- -e MYSQL_SERVER_DB_NAME=onlyoffice \
- -e MYSQL_SERVER_HOST=onlyoffice-mysql-server \
- -e MYSQL_SERVER_USER=onlyoffice_user \
- -e MYSQL_SERVER_PASS=onlyoffice_pass \
- 
- -e DOCUMENT_SERVER_PORT_80_TCP_ADDR=onlyoffice-document-server \
- -e DOCUMENT_SERVER_JWT_ENABLED=true \
- -e DOCUMENT_SERVER_JWT_SECRET=${JWT_SECRET} \
- -e DOCUMENT_SERVER_JWT_HEADER=AuthorizationJwt \
- 
- -e MAIL_SERVER_API_HOST=${MAIL_SERVER_IP} \
- -e MAIL_SERVER_DB_HOST=onlyoffice-mysql-server \
- -e MAIL_SERVER_DB_NAME=onlyoffice_mailserver \
- -e MAIL_SERVER_DB_PORT=3306 \
- -e MAIL_SERVER_DB_USER=root \
- -e MAIL_SERVER_DB_PASS=my-secret-pw \ 
- -e CONTROL_PANEL_PORT_80_TCP=80 \
- -e CONTROL_PANEL_PORT_80_TCP_ADDR=onlyoffice-control-panel \
- -v /app/onlyoffice/CommunityServer/data:/var/www/onlyoffice/Data \
- -v /app/onlyoffice/CommunityServer/logs:/var/log/onlyoffice \
- -v /app/onlyoffice/CommunityServer/letsencrypt:/etc/letsencrypt \
- -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
- onlyoffice/communityserver
-```
-
-Where `${MAIL_SERVER_IP}` is the IP address for **ONLYOFFICE Mail Server**. You can easily get it using the command:
-```
-MAIL_SERVER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' onlyoffice-mail-server)
-```
-
-Alternatively, you can use an automatic installation script to install ONLYOFFICE Workspace at once. For the mail server correct work you need to specify its hostname 'yourdomain.com'.
-
-**STEP 1**: Download the ONLYOFFICE Workspace Docker script file
-
-```bash
-wget https://download.onlyoffice.com/install/workspace-install.sh
-```
-
-**STEP 2**: Install ONLYOFFICE Workspace executing the following command:
-
-```bash
-bash workspace-install.sh -md yourdomain.com
-```
-
-Or, use [docker-compose](https://docs.docker.com/compose/install "docker-compose"). First you need to clone this [GitHub repository](https://github.com/ONLYOFFICE/Docker-CommunityServer/):
-
-```bash
-wget https://raw.githubusercontent.com/ONLYOFFICE/Docker-CommunityServer/master/docker-compose.groups.yml
-docker-compose -f docker-compose.groups.yml up -d
-```
-
-## ONLYOFFICE Document Server ipv6 setup
+## ConnectGH Document Server ipv6 setup
 
 (Works and is supported only for Linux hosts)
 
@@ -428,7 +327,7 @@ For more information, visit the official [Docker manual site](https://docs.docke
 
 As a relatively new project Docker is being worked on and actively developed by its community. So it's recommended to use the latest version of Docker, because the issues that you encounter might have already been fixed with a newer Docker release.
 
-The known Docker issue with ONLYOFFICE Document Server with rpm-based distributives is that sometimes the processes fail to start inside Docker container. Fedora and RHEL/CentOS users should try disabling SELinux with setenforce 0. If it fixes the issue then you can either stick with SELinux disabled which is not recommended by Red Hat, or switch to using Ubuntu.
+The known Docker issue with ConnectGH Document Server with rpm-based distributives is that sometimes the processes fail to start inside Docker container. Fedora and RHEL/CentOS users should try disabling SELinux with setenforce 0. If it fixes the issue then you can either stick with SELinux disabled which is not recommended by Red Hat, or switch to using Ubuntu.
 
 ### Document Server usage issues
 
@@ -442,23 +341,10 @@ Please note, that both executing the script and disconnecting users may take a l
 
 ## Project Information
 
-Official website: [www.onlyoffice.com](https://www.onlyoffice.com/?utm_source=github&utm_medium=cpc&utm_campaign=GitHubDockerDS)
+Code repository: [github.com/CGHLTD/ConnectGH-DocumentServer](https://github.com/CGHLTD/ConnectGH-DocumentServer)
 
-Code repository: [github.com/ONLYOFFICE/DocumentServer](https://github.com/ONLYOFFICE/DocumentServer "https://github.com/ONLYOFFICE/DocumentServer")
+Based on: [ONLYOFFICE Docs](https://github.com/ONLYOFFICE/DocumentServer) and [ONLYOFFICE/Docker-DocumentServer](https://github.com/ONLYOFFICE/Docker-DocumentServer)
 
-Docker Image: [github.com/ONLYOFFICE/Docker-DocumentServer](https://github.com/ONLYOFFICE/Docker-DocumentServer "https://github.com/ONLYOFFICE/Docker-DocumentServer")
+License: [GNU AGPL v3.0](LICENSE). ONLYOFFICE Docs is © Ascensio System SIA and is distributed under the AGPL v3.0 with the additional terms set out in its own license.
 
-License: [GNU AGPL v3.0](https://onlyo.co/38YZGJh)
-
-Free version vs commercial builds comparison: https://github.com/ONLYOFFICE/DocumentServer#onlyoffice-docs-editions
-
-## User Feedback and Support
-
-If you face any issues or have questions about this image, visit our official forum: [forum.onlyoffice.com][1].
-
-You are also welcome to ask and answer ONLYOFFICE development questions on [Stack Overflow][2], as well as share your suggestions on [feedback.onlyoffice.com](https://feedback.onlyoffice.com/forums/966080-your-voice-matters).
-
-Join [our Discord community](https://discord.gg/Hcgtf5n4uF) for connecting with fellow developers.
-
-  [1]: https://forum.onlyoffice.com
-  [2]: https://stackoverflow.com/questions/tagged/onlyoffice
+Upstream editions comparison: https://github.com/ONLYOFFICE/DocumentServer#onlyoffice-docs-editions

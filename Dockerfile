@@ -3,7 +3,7 @@ ARG BASE_VERSION=24.04
 ARG BASE_IMAGE=ubuntu:$BASE_VERSION
 
 FROM ${BASE_IMAGE} AS documentserver-base
-LABEL maintainer="Ascensio System SIA <support@onlyoffice.com>"
+LABEL maintainer="ConnectGH"
 
 ARG BASE_VERSION
 ARG PG_VERSION=16
@@ -70,18 +70,30 @@ COPY run-document-server.sh /app/ds/run-document-server.sh
 
 EXPOSE 80 443
 
+# COMPANY_NAME/PRODUCT_NAME identify the upstream ONLYOFFICE package and its
+# install paths (/var/www/onlyoffice, /etc/onlyoffice, ...); keep them as-is.
 ARG COMPANY_NAME=onlyoffice
 ARG PRODUCT_NAME=documentserver
 ARG PRODUCT_EDITION=
-ARG PACKAGE_VERSION=
+# Pinned ONLYOFFICE Docs release. Empty installs the latest upstream package.
+ARG PACKAGE_VERSION=9.4.0
 ARG TARGETARCH
-ARG PACKAGE_BASEURL="http://download.onlyoffice.com/install/documentserver/linux"
+# Empty picks the upstream repo: the versioned apt pool for a pinned
+# PACKAGE_VERSION, or the "latest" download location otherwise.
+ARG PACKAGE_BASEURL=
 
 ENV COMPANY_NAME=$COMPANY_NAME \
     PRODUCT_NAME=$PRODUCT_NAME \
     PRODUCT_EDITION=$PRODUCT_EDITION \
     DS_PLUGIN_INSTALLATION=false \
     DS_DOCKER_INSTALLATION=true
+
+LABEL org.opencontainers.image.title="ConnectGH Document Server" \
+      org.opencontainers.image.description="ConnectGH Document Server, built on ONLYOFFICE Docs" \
+      org.opencontainers.image.vendor="ConnectGH" \
+      org.opencontainers.image.version="${PACKAGE_VERSION}" \
+      org.opencontainers.image.source="https://github.com/CGHLTD/ConnectGH-DocumentServer" \
+      org.opencontainers.image.licenses="AGPL-3.0-only"
 
 RUN if [ -n "${PRODUCT_EDITION}" ]; then \
     wget -q -O /etc/apt/sources.list.d/mssql-release.list "https://packages.microsoft.com/config/ubuntu/$BASE_VERSION/prod.list" && \
@@ -116,6 +128,13 @@ RUN if [ -n "${PRODUCT_EDITION}" ]; then \
     rm -rf /var/lib/apt/lists/*; fi
 
 RUN PACKAGE_FILE="${COMPANY_NAME}-${PRODUCT_NAME}${PRODUCT_EDITION}${PACKAGE_VERSION:+_$PACKAGE_VERSION}_${TARGETARCH:-$(dpkg --print-architecture)}.deb" && \
+    if [ -z "$PACKAGE_BASEURL" ]; then \
+        if [ -n "$PACKAGE_VERSION" ]; then \
+            PACKAGE_BASEURL="https://download.onlyoffice.com/repo/debian/pool/main/o/${COMPANY_NAME}-${PRODUCT_NAME}${PRODUCT_EDITION}"; \
+        else \
+            PACKAGE_BASEURL="https://download.onlyoffice.com/install/documentserver/linux"; \
+        fi; \
+    fi && \
     wget -q -P /tmp "$PACKAGE_BASEURL/$PACKAGE_FILE" && \
     apt-get -y update && \
     [ -n "${PRODUCT_EDITION}" ] && service postgresql start || true && \
